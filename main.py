@@ -41,7 +41,7 @@ def main():
         # Step 2: Start CCTV.py and record.py in parallel
         print("Starting CCTV.py and record.py...")
         cctv_process = run_script("cctv.py")
-        record_process = run_script("recorder.py")
+        record_process = run_script("record.py")
 
         # Step 3: Wait for both processes to complete
         print("Waiting for CCTV.py and record.py to finish...")
