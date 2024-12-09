@@ -28,15 +28,19 @@ def preprocess_audio(audio_file, preprocessed_audio):
     try:
         print("Preprocessing the audio...")
         preprocess_command = ["python", "preprocess_audio.py", audio_file, preprocessed_audio]
-        subprocess.run(preprocess_command, check=True)
+        result = subprocess.run(preprocess_command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print(result.stdout.decode())
+    except subprocess.CalledProcessError as e:
+        print(f"Error during audio preprocessing: {e.stderr.decode()}")
     except Exception as e:
-        print(f"Error during audio preprocessing: {e}")
+        print(f"Unexpected error during audio preprocessing: {e}")
 
 def main():
     try:
         # Step 1: Ensure folders for videos and audio exist
         ensure_folder_exists("recorded_videos")
         ensure_folder_exists("recorded_audio")
+        ensure_folder_exists("transcription")
 
         # Step 2: Start CCTV.py and record.py in parallel
         print("Starting CCTV.py and record.py...")
@@ -48,7 +52,7 @@ def main():
         wait_for_completion(cctv_process)
         wait_for_completion(record_process)
 
-        # Step 4: Locate audio file saved by recorder.py
+        # Step 4: Locate audio file saved by record.py
         audio_folder = "recorded_audio"
         latest_audio_file = None
         for file in os.listdir(audio_folder):
@@ -66,7 +70,8 @@ def main():
         # Step 6: Run transcription.py on the preprocessed audio
         print("Starting transcription.py...")
         transcription_command = ["python", "transcription.py", preprocessed_audio_file]
-        subprocess.run(transcription_command)
+        result = subprocess.run(transcription_command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print(result.stdout.decode())
 
         print("Workflow completed successfully!")
 
@@ -74,6 +79,7 @@ def main():
         print("Process interrupted by user.")
     except Exception as e:
         print(f"Error in main workflow: {e}")
+
 
 if __name__ == "__main__":
     main()

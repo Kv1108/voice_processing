@@ -16,7 +16,7 @@ def apply_bandpass_filter(audio, sr, lowcut=300.0, highcut=3400.0):
     filtered_audio = lfilter(b, a, audio)
     return filtered_audio
 
-def ramp_up_volume(audio, target_db=-3.0):
+def ramp_up_volume(audio, target_db=-0.0):
     """
     Ramps up the volume of the audio until it reaches the target dB level.
     """
@@ -33,7 +33,16 @@ def ramp_up_volume(audio, target_db=-3.0):
     audio_ramped = audio * scale_factor
     return audio_ramped
 
-def preprocess_audio(input_file, output_file):
+def boost_audio_volume(audio, boost_db=15):
+    """
+    Boosts the audio by a fixed dB amount, regardless of the current level.
+    """
+    # Convert boost in dB to a linear gain factor
+    boost_factor = 10 ** (boost_db / 20.0)
+    boosted_audio = audio * boost_factor
+    return np.clip(boosted_audio, -1.0, 1.0)  # Prevent clipping
+
+def preprocess_audio(input_file, output_file, boost_db=10):
     try:
         # Load audio
         audio, sr = librosa.load(input_file, sr=None)
@@ -45,9 +54,13 @@ def preprocess_audio(input_file, output_file):
 
         # Step 2: Volume normalization (with volume ramping)
         print("Ramping up volume...")
-        audio = ramp_up_volume(audio, target_db=-3.0)  # Ramp up to -3 dB
+        audio = ramp_up_volume(audio, target_db=-0.0)  # Normalize to 0 dB
+        
+        # Step 3: Apply additional volume boost
+        print(f"Boosting volume by {boost_db} dB...")
+        audio = boost_audio_volume(audio, boost_db=boost_db)
 
-        # Step 3: Apply band-pass filtering
+        # Step 4: Apply band-pass filtering
         print("Applying band-pass filter...")
         audio = apply_bandpass_filter(audio, sr)
 
