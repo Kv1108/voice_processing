@@ -2,3 +2,6 @@ recorded_audio/
 recorded_videos/
 
 .vscode/
+
+._pycache_/
+.pytest_cache/
