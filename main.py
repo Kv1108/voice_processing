@@ -1,6 +1,6 @@
 import subprocess
 import os
-import time
+from utils import ensure_folder_exists
 
 def run_script(script_name):
     """
@@ -21,33 +21,51 @@ def wait_for_completion(process):
     except Exception as e:
         print(f"Error while waiting for {process.args[1]}: {e}")
 
+def preprocess_audio(audio_file, preprocessed_audio):
+    """
+    Preprocess audio by running preprocess_audio.py script.
+    """
+    try:
+        print("Preprocessing the audio...")
+        preprocess_command = ["python", "preprocess_audio.py", audio_file, preprocessed_audio]
+        subprocess.run(preprocess_command, check=True)
+    except Exception as e:
+        print(f"Error during audio preprocessing: {e}")
+
 def main():
     try:
-        # Step 1: Start CCTV.py and record.py in parallel
-        print("Starting CCTV.py and record.py...")
-        cctv_process = run_script("CCTV.py")
-        record_process = run_script("record.py")
+        # Step 1: Ensure folders for videos and audio exist
+        ensure_folder_exists("recorded_videos")
+        ensure_folder_exists("recorded_audio")
 
-        # Step 2: Wait for both processes to complete
+        # Step 2: Start CCTV.py and record.py in parallel
+        print("Starting CCTV.py and record.py...")
+        cctv_process = run_script("cctv.py")
+        record_process = run_script("recorder.py")
+
+        # Step 3: Wait for both processes to complete
         print("Waiting for CCTV.py and record.py to finish...")
         wait_for_completion(cctv_process)
         wait_for_completion(record_process)
 
-        # Step 3: Ensure the audio file exists before proceeding
-        audio_file = "myrecording.wav"
-        if not os.path.exists(audio_file):
-            print(f"Error: Expected audio file '{audio_file}' not found. Cannot proceed.")
+        # Step 4: Locate audio file saved by recorder.py
+        audio_folder = "recorded_audio"
+        latest_audio_file = None
+        for file in os.listdir(audio_folder):
+            if file.endswith(".wav") and not file.endswith("_preprocessed.wav"):
+                latest_audio_file = os.path.join(audio_folder, file)
+
+        if not latest_audio_file:
+            print("Error: No audio file found. Cannot proceed.")
             return
 
-        # Step 4: Preprocess the audio
-        print("Preprocessing the audio...")
-        preprocessed_audio = "preprocessed_audio.wav"
-        preprocess_command = ["python", "preprocess_audio.py", audio_file, preprocessed_audio]
-        subprocess.run(preprocess_command)
+        # Step 5: Preprocess the located audio
+        preprocessed_audio_file = latest_audio_file.replace(".wav", "_preprocessed.wav")
+        preprocess_audio(latest_audio_file, preprocessed_audio_file)
 
-        # Step 5: Run transcription.py on the preprocessed audio
+        # Step 6: Run transcription.py on the preprocessed audio
         print("Starting transcription.py...")
-        transcription_command = ["python", "transcription.py", preprocessed_audio]
+        transcription_command = ["python", "transcription.py", preprocessed_audio_file]
         subprocess.run(transcription_command)
 
         print("Workflow completed successfully!")

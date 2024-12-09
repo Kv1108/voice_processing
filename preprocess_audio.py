@@ -16,6 +16,23 @@ def apply_bandpass_filter(audio, sr, lowcut=300.0, highcut=3400.0):
     filtered_audio = lfilter(b, a, audio)
     return filtered_audio
 
+def ramp_up_volume(audio, target_db=-3.0):
+    """
+    Ramps up the volume of the audio until it reaches the target dB level.
+    """
+    # Convert the target volume level (dB) to linear amplitude
+    target_amplitude = 10 ** (target_db / 20.0)
+    
+    # Find the current volume level (rms)
+    rms = np.sqrt(np.mean(audio**2))
+    
+    # Calculate the factor by which to scale the audio
+    scale_factor = target_amplitude / rms if rms != 0 else 1
+    
+    # Ramp up the volume of the audio
+    audio_ramped = audio * scale_factor
+    return audio_ramped
+
 def preprocess_audio(input_file, output_file):
     try:
         # Load audio
@@ -26,11 +43,9 @@ def preprocess_audio(input_file, output_file):
         noise_profile = np.mean(audio[:1000])  # Estimate noise from the first 1000 samples
         audio = audio - noise_profile  # Subtract the noise profile
 
-        # Step 2: Volume normalization
-        print("Normalizing volume...")
-        max_amplitude = np.max(np.abs(audio))
-        if max_amplitude > 0:
-            audio = audio / max_amplitude
+        # Step 2: Volume normalization (with volume ramping)
+        print("Ramping up volume...")
+        audio = ramp_up_volume(audio, target_db=-3.0)  # Ramp up to -3 dB
 
         # Step 3: Apply band-pass filtering
         print("Applying band-pass filter...")

@@ -1,53 +1,99 @@
 import pyaudio
 import wave
-from preprocess_audio import preprocess_audio  # Import the preprocessing module
+import datetime
+import os
+import time
+import keyboard  # For listening to key presses
+from utils import ensure_folder_exists, preprocess_audio
 
-# Function to record audio
-def record_audio(output_path="myrecording.wav", duration=None):
-    audio = pyaudio.PyAudio()
-    stream = audio.open(format=pyaudio.paInt16, channels=1, rate=44100, input=True, frames_per_buffer=1024)
+# Detection variables
+recording = False
+recording_stopped_time = None
+SECONDS_TO_RECORD_AFTER_DETECTION = 5
+timer_started = False
 
-    frames = []
-    print("Recording... Press Ctrl+C to stop.")
+# Folder setup for audio files
+audio_folder = "recorded_audio"
+ensure_folder_exists(audio_folder)
 
-    try:
-        if duration:
-            for _ in range(0, int(44100 / 1024 * duration)):
-                data = stream.read(1024)
-                frames.append(data)
-        else:
-            while True:
-                data = stream.read(1024)
-                frames.append(data)
-    except KeyboardInterrupt:
-        print("\nRecording stopped.")
-    except Exception as e:
-        print(f"Error during recording: {e}")
-    finally:
-        stream.stop_stream()
-        stream.close()
-        audio.terminate()
+# Initialize PyAudio
+audio = pyaudio.PyAudio()
+stream = audio.open(format=pyaudio.paInt16, channels=1, rate=44100, input=True, frames_per_buffer=1024)
 
-    # Save the raw recording
-    raw_audio_file = output_path
-    sound_file = wave.open(raw_audio_file, "wb")
-    sound_file.setnchannels(1)
-    sound_file.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
-    sound_file.setframerate(44100)
-    sound_file.writeframes(b''.join(frames))
-    sound_file.close()
+frames = []
+print("Audio recording ready... Press 'q' to stop manually.")
 
-    print(f"Audio saved to '{raw_audio_file}'")
-    return raw_audio_file
+try:
+    while True:
+        # Read audio input
+        data = stream.read(1024, exception_on_overflow=False)
+        frames.append(data)
+        
+        # Simulate detection (you can replace this logic with actual detection logic if required)
+        detection = True  # Assume we're always detecting audio input for now
 
+        if detection:
+            if recording:
+                timer_started = False
+            else:
+                # Start recording
+                recording = True
+                timer_started = False
+                timestamp = datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
+                audio_path = os.path.join(audio_folder, f"{timestamp}.wav")
+                print(f"Started Recording: {audio_path}")
+        elif recording:  # No detection
+            if timer_started:
+                if time.time() - recording_stopped_time >= SECONDS_TO_RECORD_AFTER_DETECTION:
+                    # Stop recording and save the audio
+                    recording = False
+                    timer_started = False
+                    sound_file = wave.open(audio_path, "wb")
+                    sound_file.setnchannels(1)
+                    sound_file.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+                    sound_file.setframerate(44100)
+                    sound_file.writeframes(b"".join(frames))
+                    sound_file.close()
+                    print(f"Stopped Recording! Saved to: {audio_path}")
 
-if __name__ == "__main__":
-    # Step 1: Record audio
-    raw_audio_file = record_audio(output_path="myrecording.wav")
+                    # Preprocess the audio
+                    preprocessed_path = audio_path.replace(".wav", "_preprocessed.wav")
+                    try:
+                        preprocess_audio(audio_path, preprocessed_path)
+                        print(f"Preprocessed Audio Saved to: {preprocessed_path}")
+                    except Exception as e:
+                        print(f"Error during preprocessing: {e}")
+                    frames = []  # Clear frames for the next recording
+            else:
+                timer_started = True
+                recording_stopped_time = time.time()
 
-    # Step 2: Preprocess the recorded audio
-    preprocessed_audio_file = "preprocessed_audio.wav"
-    print("Preprocessing the audio for better quality...")
-    preprocess_audio(raw_audio_file, preprocessed_audio_file)
+        # Stop recording manually by pressing 'q'
+        if keyboard.is_pressed('q'):
+            print("Manual stop detected. Finalizing...")
+            if recording:
+                # Save the current recording if active
+                sound_file = wave.open(audio_path, "wb")
+                sound_file.setnchannels(1)
+                sound_file.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+                sound_file.setframerate(44100)
+                sound_file.writeframes(b"".join(frames))
+                sound_file.close()
+                print(f"Stopped Recording! Saved to: {audio_path}")
 
-    print(f"Preprocessed audio saved to '{preprocessed_audio_file}'")
+                # Preprocess the audio
+                preprocessed_path = audio_path.replace(".wav", "_preprocessed.wav")
+                try:
+                    preprocess_audio(audio_path, preprocessed_path)
+                    print(f"Preprocessed Audio Saved to: {preprocessed_path}")
+                except Exception as e:
+                    print(f"Error during preprocessing: {e}")
+            break
+
+except KeyboardInterrupt:
+    print("Recording stopped manually via Ctrl+C.")
+
+# Cleanup
+stream.stop_stream()
+stream.close()
+audio.terminate()
