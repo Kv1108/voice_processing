@@ -3,17 +3,13 @@ import os
 import sys
 
 def ensure_folder_exists(folder_name):
-    """
-    Ensure that the specified folder exists; create it if it doesn't.
-    """
+    
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
         print(f"Created folder: {folder_name}")
 
 def transcribe_audio(audio_path):
-    """
-    Transcribes audio from a given file path using Google Speech Recognition.
-    """
+   
     recognizer = sr.Recognizer()
 
     # Load the audio file
@@ -36,9 +32,7 @@ def transcribe_audio(audio_path):
         return f"Error: Could not request results from the Google Speech Recognition service; {e}"
 
 def save_transcription_to_file(audio_path, transcription, output_folder):
-    """
-    Saves the transcription to a text file in the specified output folder.
-    """
+   
     # Generate the transcription file path
     base_name = os.path.basename(audio_path)  # Extract file name from the path
     transcription_file_path = os.path.join(output_folder, f"{os.path.splitext(base_name)[0]}_transcription.txt")

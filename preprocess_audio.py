@@ -17,9 +17,6 @@ def apply_bandpass_filter(audio, sr, lowcut=300.0, highcut=3400.0):
     return filtered_audio
 
 def ramp_up_volume(audio, target_db=-0.0):
-    """
-    Ramps up the volume of the audio until it reaches the target dB level.
-    """
     # Convert the target volume level (dB) to linear amplitude
     target_amplitude = 10 ** (target_db / 20.0)
     
@@ -34,9 +31,6 @@ def ramp_up_volume(audio, target_db=-0.0):
     return audio_ramped
 
 def boost_audio_volume(audio, boost_db=15):
-    """
-    Boosts the audio by a fixed dB amount, regardless of the current level.
-    """
     # Convert boost in dB to a linear gain factor
     boost_factor = 10 ** (boost_db / 20.0)
     boosted_audio = audio * boost_factor

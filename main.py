@@ -3,15 +3,9 @@ import os
 from utils import ensure_folder_exists
 
 def run_script(script_name):
-    """
-    Run a Python script as a subprocess.
-    """
     return subprocess.Popen(["python", script_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 def wait_for_completion(process):
-    """
-    Wait for a subprocess to finish and capture its output.
-    """
     try:
         output, error = process.communicate()  # Waits for the process to complete
         if output:
@@ -22,9 +16,6 @@ def wait_for_completion(process):
         print(f"Error while waiting for {process.args[1]}: {e}")
 
 def preprocess_audio(audio_file, preprocessed_audio):
-    """
-    Preprocess audio by running preprocess_audio.py script.
-    """
     try:
         print("Preprocessing the audio...")
         preprocess_command = ["python", "preprocess_audio.py", audio_file, preprocessed_audio]
