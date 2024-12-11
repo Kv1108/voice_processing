@@ -1,9 +1,9 @@
 recorded_audio/
 recorded_videos/
-./transcriptions
+transcriptions/
+transcription/
 
 
 .vscode/
-
-._pycache_/
-.pytest_cache/
+_pycache_/
+pytest_cache/
