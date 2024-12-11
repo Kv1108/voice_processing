@@ -32,29 +32,65 @@ def save_cluster_audio(cluster_segments, audio, sampling_rate):
         print(f"Audio for Cluster {cluster} saved to {cluster_file}")
 
 def estimate_num_speakers(features, max_speakers=5):
+    if len(features) < 2:
+        print("Not enough features to estimate number of speakers.")
+        return 1
+
     silhouette_scores = []
-    for n in range(2, max_speakers + 1):
+    for n in range(2, min(max_speakers + 1, len(features))):
         kmeans = KMeans(n_clusters=n, random_state=0)
         labels = kmeans.fit_predict(features)
         silhouette_scores.append(silhouette_score(features, labels))
+    
+    if not silhouette_scores:
+        return 1  # Default to 1 speaker if no valid clustering is possible
+    
     best_n = np.argmax(silhouette_scores) + 2
     return best_n
 
 def process_vad_and_clustering(audio_file):
-    # Load audio data using librosa
+
     signal, sr = librosa.load(audio_file, sr=None)  # sr=None preserves the original sampling rate
 
-    # Perform silence removal
-    segments, _ = aS.silence_removal(signal, 0.02, 0.01, st_step=0.01, plot=False)
+    if len(signal) == 0:
+        raise ValueError(f"The audio file {audio_file} contains no valid audio data.")
+
+    try:
+        segments = aS.silence_removal(
+            signal=signal, 
+            sampling_rate=sr, 
+            st_win=0.02, 
+            st_step=0.01, 
+            smooth_window=0.01, 
+            weight=0.05, 
+            plot=False
+        )
+    except Exception as e:
+        raise RuntimeError(f"Error during silence removal: {e}")
+
+
+# It is basically using Fourier inversion theorem which is basically for reconstructing the wave(here audio waves) using frequency and phase information about the wave
+
+# for more about the Fourier inversion theorem visit: https://en.wikipedia.org/wiki/Fourier_inversion_theorem
+
+# the cepstrum is the result of computing the inverse Fourier transform (IFT) of the logarithm of the estimated signal spectrum. The applications of it is the analysis of human speech.
+
+# We are using Mel-frequency cepstral coefficients (MFCCs) which are derived from a type of cepstral representation of the audio clip 
+
 
     # Extract features from audio segments
     mfcc_features = []
     for segment in segments:
         start, end = segment
         segment_audio = signal[int(start * sr):int(end * sr)]
+        if len(segment_audio) == 0:  # Skip empty segments
+            continue
         mfcc = librosa.feature.mfcc(y=segment_audio, sr=sr, n_mfcc=13)
         mfcc_mean = np.mean(mfcc, axis=1)
         mfcc_features.append(mfcc_mean)
+
+    if not mfcc_features:
+        raise ValueError("No valid segments were found in the audio file.")
 
     mfcc_features = np.array(mfcc_features)
     scaler = StandardScaler()
@@ -63,32 +99,37 @@ def process_vad_and_clustering(audio_file):
     n_clusters = estimate_num_speakers(mfcc_features_scaled)
     print(f"Estimated number of speakers: {n_clusters}")
 
-    # Apply KMeans clustering
+    # Applying KMeans clustering
+
     kmeans = KMeans(n_clusters=n_clusters, random_state=0)
     labels = kmeans.fit_predict(mfcc_features_scaled)
 
-    # Perform PCA for visualization
-    pca = PCA(n_components=2)
-    reduced_features = pca.fit_transform(mfcc_features_scaled)
+    # PCA stands for Principal Component Analysis 
 
-    plt.figure(figsize=(10, 6))
-    plt.scatter(reduced_features[:, 0], reduced_features[:, 1], c=labels, cmap='viridis', s=10)
-    plt.title(f"Clusters of Audio Segments (Estimated Speakers: {n_clusters})")
-    plt.xlabel("PCA Component 1")
-    plt.ylabel("PCA Component 2")
-    plt.colorbar(label="Cluster")
-    plt.show()
+    # The mfcc features we used exists in high dimentional space (13 dimentions here) so uding PCA we are reducing it to 2 dimentions for visualizaion
+     
+    if len(mfcc_features_scaled) > 1:
+        pca = PCA(n_components=2)
+        reduced_features = pca.fit_transform(mfcc_features_scaled)
+
+        plt.figure(figsize=(10, 6))
+        plt.scatter(reduced_features[:, 0], reduced_features[:, 1], c=labels, cmap='viridis', s=10)
+        plt.title(f"Clusters of Audio Segments (Estimated Speakers: {n_clusters})")
+        plt.xlabel("PCA Component 1")
+        plt.ylabel("PCA Component 2")
+        plt.colorbar(label="Cluster")
+        plt.show()
 
     # Save clustered audio segments
+
     clustered_segments = {i: [] for i in range(n_clusters)}
     for idx, label in enumerate(labels):
-        start_time = segments[idx][0]  # start time of the segment
-        end_time = segments[idx][1]    # end time of the segment
+        start_time = segments[idx][0]  
+        end_time = segments[idx][1]    
         clustered_segments[label].append((start_time, end_time))
 
     save_cluster_audio(clustered_segments, signal, sr)
 
-# Main execution
 audio_folder = "recorded_audio"
 latest_audio_file = get_latest_audio_file(audio_folder)
 print(f"Processing latest audio file: {latest_audio_file}")
