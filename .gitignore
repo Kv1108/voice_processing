@@ -2,6 +2,8 @@ recorded_audio/
 recorded_videos/
 transcriptions/
 transcription/
+temp_audio_segments/
+clusters/
 
 .vscode/
 _pycache_/
