@@ -3,6 +3,8 @@ import soundfile as sf
 import numpy as np
 from scipy.signal import butter, lfilter
 
+
+# what sound to allow instructions
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyquist = 0.5 * fs
     low = lowcut / nyquist
@@ -10,24 +12,22 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
     b, a = butter(order, [low, high], btype="band")
     return b, a
 
-def apply_bandpass_filter(audio, sr, lowcut=300.0, highcut=3400.0):
+# 300 and 3400 Hz of voice
+def apply_bandpass_filter(audio, sr, lowcut=300.0, highcut=3400.0): 
     b, a = butter_bandpass(lowcut, highcut, sr, order=6)
     filtered_audio = lfilter(b, a, audio)
     return filtered_audio
 
-def ramp_up_volume(audio, target_db=-0.0):
-
+# adjusts the loudness 
+def ramp_up_volume(audio, target_db=-0.0): 
     target_amplitude = 10 ** (target_db / 20.0)
-    
     rms = np.sqrt(np.mean(audio**2))
-
     scale_factor = target_amplitude / rms if rms != 0 else 1
-    
     audio_ramped = audio * scale_factor
     return audio_ramped
 
+# increases the volume by 15 db
 def boost_audio_volume(audio, boost_db=15):
-
     boost_factor = 10 ** (boost_db / 20.0)
     boosted_audio = audio * boost_factor
     return np.clip(boosted_audio, -1.0, 1.0)  # Prevent clipping

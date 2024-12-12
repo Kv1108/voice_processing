@@ -108,6 +108,20 @@ def process_vad_and_clustering(audio_file):
 
     # The mfcc features we used exists in high dimentional space (13 dimentions here) so uding PCA we are reducing it to 2 dimentions for visualizaion
      
+    """
+    if len(mfcc_features_scaled) > 1:
+        pca = PCA(n_components=2)
+        reduced_features = pca.fit_transform(mfcc_features_scaled)
+
+        plt.figure(figsize=(10, 6))
+        plt.scatter(reduced_features[:, 0], reduced_features[:, 1], c=labels, cmap='viridis', s=10)
+        plt.title(f"Clusters of Audio Segments (Estimated Speakers: {n_clusters})")
+        plt.xlabel("PCA Component 1")
+        plt.ylabel("PCA Component 2")
+        plt.colorbar(label="Cluster")
+        plt.show()
+    """
+    
     # Save clustered audio segments
 
     clustered_segments = {i: [] for i in range(n_clusters)}
