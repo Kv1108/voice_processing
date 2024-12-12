@@ -3,7 +3,6 @@ recorded_videos/
 transcriptions/
 transcription/
 
-
 .vscode/
 _pycache_/
 pytest_cache/
