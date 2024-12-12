@@ -1,3 +1,5 @@
+# made CCTV.py for synchronized audio and video processing
+
 import cv2
 import time
 import datetime
