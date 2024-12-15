@@ -68,17 +68,6 @@ def process_vad_and_clustering(audio_file):
     except Exception as e:
         raise RuntimeError(f"Error during silence removal: {e}")
 
-
-# It is basically using Fourier inversion theorem which is basically for reconstructing the wave(here audio waves) using frequency and phase information about the wave
-
-# for more about the Fourier inversion theorem visit: https://en.wikipedia.org/wiki/Fourier_inversion_theorem
-
-# the cepstrum is the result of computing the inverse Fourier transform (IFT) of the logarithm of the estimated signal spectrum. The applications of it is the analysis of human speech.
-
-# We are using Mel-frequency cepstral coefficients (MFCCs) which are derived from a type of cepstral representation of the audio clip 
-
-# MFCCs are like voice fingerprints
-
     # Extract features from audio segments
     mfcc_features = []
     for segment in segments:
@@ -105,23 +94,40 @@ def process_vad_and_clustering(audio_file):
     kmeans = KMeans(n_clusters=n_clusters, random_state=0)
     labels = kmeans.fit_predict(mfcc_features_scaled)
 
-    # PCA stands for Principal Component Analysis 
-
-    # The mfcc features we used exists in high dimentional space (13 dimentions here) so uding PCA we are reducing it to 2 dimentions for visualizaion
-     
-   
+    # PCA for Visualization
     if len(mfcc_features_scaled) > 1:
         pca = PCA(n_components=2)
         reduced_features = pca.fit_transform(mfcc_features_scaled)
 
-        plt.figure(figsize=(10, 6))
-        plt.scatter(reduced_features[:, 0], reduced_features[:, 1], c=labels, cmap='viridis', s=10)
-        plt.title(f"Clusters of Audio Segments (Estimated Speakers: {n_clusters})")
+        plt.figure(figsize=(12, 8))
+        scatter = plt.scatter(
+            reduced_features[:, 0], 
+            reduced_features[:, 1], 
+            c=labels, 
+            cmap='viridis', 
+            s=50, 
+            alpha=0.7, 
+            edgecolors='k'
+        )
+        
+        # Marking cluster centers
+        cluster_centers = pca.transform(kmeans.cluster_centers_)
+        plt.scatter(
+            cluster_centers[:, 0], 
+            cluster_centers[:, 1], 
+            c='gray', 
+            s=50, 
+            marker='D', 
+            label='Centroids'
+        )
+        
+        plt.title(f"Clusters of Audio Segments (Estimated Speakers: {n_clusters})", fontsize=14)
         plt.xlabel("PCA Component 1")
         plt.ylabel("PCA Component 2")
-        plt.colorbar(label="Cluster")
+        plt.colorbar(scatter, label="Cluster")
+        plt.legend()
+        plt.grid(True)
         plt.show()
-  
 
     # Save clustered audio segments
 
