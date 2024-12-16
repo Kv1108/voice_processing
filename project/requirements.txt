@@ -1,0 +1,8 @@
+torch==2.1.0
+torchaudio==2.1.0
+openai-whisper==20240927
+pyannote-audio==2.1.1
+pytorch-lightning>=1.5.4,<1.7
+sounddevice==0.4.4
+streamlit==1.18.1
+mysql-connector-python==8.0.33
