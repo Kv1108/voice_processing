@@ -1,3 +1,5 @@
+
+
 import librosa
 import soundfile as sf
 import numpy as np
@@ -13,7 +15,7 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
     return b, a
 
 # 300 and 3400 Hz of voice
-def apply_bandpass_filter(audio, sr, lowcut=300.0, highcut=3400.0): 
+def apply_bandpass_filter(audio, sr, lowcut=30.0, highcut=3400.0): 
     b, a = butter_bandpass(lowcut, highcut, sr, order=6)
     filtered_audio = lfilter(b, a, audio)
     return filtered_audio
@@ -27,7 +29,7 @@ def ramp_up_volume(audio, target_db=-0.0):
     return audio_ramped
 
 # increases the volume by 15 db
-def boost_audio_volume(audio, boost_db=15):
+def boost_audio_volume(audio, boost_db=25):
     boost_factor = 10 ** (boost_db / 20.0)
     boosted_audio = audio * boost_factor
     return np.clip(boosted_audio, -1.0, 1.0)  # Prevent clipping
@@ -53,3 +55,5 @@ def preprocess_audio(input_file, output_file, boost_db=10):
         print(f"Audio successfully preprocessed and saved to '{output_file}'")
     except Exception as e:
         print(f"Error during preprocessing: {e}")
+
+
