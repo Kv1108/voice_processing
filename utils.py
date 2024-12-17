@@ -1,16 +1,22 @@
 import os
-import librosa
-import soundfile as sf
 
 def ensure_folder_exists(folder_path):
+    """
+    Ensures a folder exists. Creates it if it doesn't.
+    Args:
+        folder_path (str): Path to the folder.
+    """
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
+        print(f"Created folder: {folder_path}")
 
-def preprocess_audio(input_path, output_path):
-    try:
-        audio, sr = librosa.load(input_path, sr=None)
-        audio = librosa.effects.preemphasis(audio)  # Apply pre-emphasis
-        sf.write(output_path, audio, sr)
-        print(f"Preprocessed audio saved to: {output_path}")
-    except Exception as e:
-        print(f"Error in preprocessing audio: {e}")
+def get_all_files(folder_path, extension=".wav"):
+    """
+    Retrieves all files with a specific extension in a folder.
+    Args:
+        folder_path (str): Folder to search in.
+        extension (str): File extension to filter by.
+    Returns:
+        list: List of file paths with the specified extension.
+    """
+    return [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith(extension)]
