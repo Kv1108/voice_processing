@@ -36,14 +36,6 @@ def record_audio(duration=DURATION, sample_rate=SAMPLE_RATE):
 
 
 def apply_noise_reduction(audio, sr):
-    """
-    Applies noise reduction to the audio signal.
-    Args:
-        audio (np.ndarray): Raw audio signal.
-        sr (int): Sampling rate of the audio signal.
-    Returns:
-        np.ndarray: Noise-reduced audio signal.
-    """
     print("Applying noise reduction...")
     reduced_audio = nr.reduce_noise(y=audio, sr=sr)
     print("Noise reduction applied.")
@@ -51,13 +43,6 @@ def apply_noise_reduction(audio, sr):
 
 
 def normalize_audio(audio):
-    """
-    Normalizes audio to a target peak level.
-    Args:
-        audio (np.ndarray): Audio signal to be normalized.
-    Returns:
-        np.ndarray: Normalized audio signal.
-    """
     print("Normalizing audio...")
     max_val = np.max(np.abs(audio))
     normalized_audio = audio / max_val if max_val > 0 else audio
@@ -66,14 +51,6 @@ def normalize_audio(audio):
 
 
 def save_audio(audio, sample_rate, folder, file_name):
-    """
-    Saves the processed audio to a file.
-    Args:
-        audio (np.ndarray): Audio signal to save.
-        sample_rate (int): Sampling rate of the audio signal.
-        folder (str): Destination folder to save the file.
-        file_name (str): Name of the output audio file.
-    """
     ensure_folder_exists(folder)
     output_path = os.path.join(folder, file_name)
     sf.write(output_path, audio, sample_rate)
@@ -82,15 +59,6 @@ def save_audio(audio, sample_rate, folder, file_name):
 
 
 def preprocess_and_save_audio(audio, sample_rate, output_name):
-    """
-    Processes the audio by applying noise reduction and normalization, then saves it.
-    Args:
-        audio (np.ndarray): Raw audio signal.
-        sample_rate (int): Sampling rate of the audio.
-        output_name (str): Name for the processed output file.
-    Returns:
-        str: Path to the saved processed audio file.
-    """
     # Step 1: Noise Reduction
     audio = apply_noise_reduction(audio, sample_rate)
 
@@ -103,13 +71,12 @@ def preprocess_and_save_audio(audio, sample_rate, output_name):
 
 
 def main():
-    """Main function for audio acquisition and preprocessing."""
     ensure_folder_exists(RAW_AUDIO_FOLDER)
     ensure_folder_exists(AUDIO_OUTPUT_FOLDER)
 
     while True:
         try:
-            print("\n=== Real-Time Audio Acquisition & Preprocessing ===")
+            print("\n Real-Time Audio Acquisition & Preprocessing")
             audio_signal = record_audio()
 
             # Save raw audio for backup

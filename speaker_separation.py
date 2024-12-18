@@ -12,7 +12,6 @@ SPEECH_SEGMENTS_FOLDER = "speech_segments"    # Input folder (from Stage 2)
 SPEAKER_OUTPUT_FOLDER = "speaker_audio"       # Output folder for separated speakers
 
 def ensure_folder_exists(folder_path):
-    """Ensure the specified folder exists."""
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
@@ -21,6 +20,27 @@ def extract_audio_features(audio_segment, sr):
     Extract audio features for clustering:
     - MFCCs, Delta MFCCs, Spectral Contrast, Pitch, RMS.
     """
+    # Ensure segment is long enough for processing
+    if len(audio_segment) < 512:
+        raise ValueError("Audio segment too short for feature extraction.")
+
+    mfcc = librosa.feature.mfcc(y=audio_segment, sr=sr, n_mfcc=13, n_fft=512, hop_length=256)
+    delta_mfcc = librosa.feature.delta(mfcc)
+    chroma = librosa.feature.chroma_stft(y=audio_segment, sr=sr, n_fft=512, hop_length=256)
+    spectral_contrast = librosa.feature.spectral_contrast(y=audio_segment, sr=sr, n_fft=512)
+    rms = librosa.feature.rms(y=audio_segment, frame_length=512, hop_length=256)
+    pitch = librosa.yin(audio_segment, fmin=50, fmax=300, sr=sr, frame_length=512, hop_length=256)
+
+    # Combine features
+    features = np.concatenate([
+        np.mean(mfcc, axis=1),
+        np.mean(delta_mfcc, axis=1),
+        np.mean(chroma, axis=1),
+        np.mean(spectral_contrast, axis=1),
+        [np.mean(rms)],
+        [np.mean(pitch)],
+    ])
+    return features
     mfcc = librosa.feature.mfcc(y=audio_segment, sr=sr, n_mfcc=13)
     delta_mfcc = librosa.feature.delta(mfcc)
     chroma = librosa.feature.chroma_stft(y=audio_segment, sr=sr)
@@ -42,10 +62,6 @@ def extract_audio_features(audio_segment, sr):
 def estimate_num_speakers(features):
     """
     Estimate the optimal number of speakers using Silhouette Score.
-    Args:
-        features (numpy array): Audio features for clustering.
-    Returns:
-        int: Estimated number of speakers.
     """
     min_clusters = 2
     max_clusters = min(10, len(features))  # Ensure max_clusters doesn't exceed the number of samples
@@ -80,11 +96,6 @@ def estimate_num_speakers(features):
 def cluster_speakers(features, num_speakers):
     """
     Perform K-Means clustering to group segments by speaker.
-    Args:
-        features (numpy array): Extracted features.
-        num_speakers (int): Number of speakers to cluster.
-    Returns:
-        list: Cluster labels for each segment.
     """
     kmeans = KMeans(n_clusters=num_speakers, random_state=42)
     labels = kmeans.fit_predict(features)
@@ -116,11 +127,47 @@ def save_speaker_audio(cluster_labels, audio_segments, sr, file_name, output_fol
         print(f"Saved Speaker {speaker + 1} audio to {speaker_file}")
 
 def process_speaker_separation(input_folder):
-    """
-    Process all speech segments for speaker separation.
-    Args:
-        input_folder (str): Path to speech segments folder.
-    """
+    files = [f for f in os.listdir(input_folder) if f.endswith(".wav")]
+    for file in files:
+        try:
+            print(f"Processing speaker separation for: {file}")
+            file_path = os.path.join(input_folder, file)
+
+            # Load audio
+            audio, sr = librosa.load(file_path, sr=None)
+
+            # Divide into fixed-length chunks (1-second chunks for simplicity)
+            chunk_size = sr  # 1 second
+            audio_segments = [
+                segment for segment in (audio[i:i + chunk_size] for i in range(0, len(audio), chunk_size))
+                if len(segment) > 512  # Filter short segments
+            ]
+
+            if not audio_segments:
+                print(f"[Warning] No valid audio segments for {file}. Skipping...")
+                continue
+
+            # Extract features for each segment
+            features = np.array([extract_audio_features(segment, sr) for segment in audio_segments])
+
+            # Skip processing if not enough features
+            if len(features) < 2:
+                print(f"[Warning] Not enough features for clustering. Skipping {file}...")
+                continue
+
+            # Estimate number of speakers and perform clustering
+            num_speakers = estimate_num_speakers(features)
+            print(f"Estimated number of speakers: {num_speakers}")
+
+            # Perform KMeans clustering
+            labels = cluster_speakers(features, num_speakers)
+
+            # Save segmented audio for each speaker
+            save_speaker_audio(labels, audio_segments, sr, file.split(".")[0], SPEAKER_OUTPUT_FOLDER)
+
+        except Exception as e:
+            print(f"Error processing {file}: {e}")
+
     # Corrected variable name from `folder_path` to `input_folder`
     files = [f for f in os.listdir(input_folder) if f.endswith(".wav")]
     for file in files:

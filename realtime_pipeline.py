@@ -4,7 +4,7 @@ import time
 from utils import ensure_folder_exists
 from audio_acquisition_preprocessing import preprocess_and_save_audio
 from vad_silence_removal import process_vad
-from audio_separation_stage import separate_speakers
+from speaker_separation import process_speaker_separation
 from transcription_stage import process_transcription
 
 # Global Variables
@@ -25,13 +25,11 @@ ensure_folder_exists(TRANSCRIPTIONS_FOLDER)
 ensure_folder_exists(LOG_FOLDER)
 
 def log_error(message):
-    """Logs errors to a log file."""
     log_file = os.path.join(LOG_FOLDER, "pipeline_errors.log")
     with open(log_file, "a") as file:
         file.write(f"[ERROR] {time.strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
 
 def consolidate_transcriptions(transcriptions_folder, output_file):
-    """Combines all transcriptions into a single summary file."""
     with open(output_file, "w") as output:
         output.write("Consolidated Transcriptions\n")
         output.write("=" * 40 + "\n\n")
@@ -44,11 +42,6 @@ def consolidate_transcriptions(transcriptions_folder, output_file):
         print(f"Final transcription summary saved to: {output_file}")
 
 def process_audio_pipeline(audio_file):
-    """
-    Orchestrates the entire pipeline for a single audio file.
-    Args:
-        audio_file (str): Path to the input audio file.
-    """
     try:
         print(f"Starting pipeline for: {audio_file}")
         base_name = os.path.splitext(os.path.basename(audio_file))[0]
@@ -80,7 +73,6 @@ def process_audio_pipeline(audio_file):
         print(error_message)
 
 def monitor_input_folder():
-    """Continuously monitor the input folder for new audio files."""
     print("Monitoring input folder for new audio files...")
     processed_files = set()
 
