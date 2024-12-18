@@ -1,15 +1,14 @@
 import os
-import webrtcvad
 import librosa
 import soundfile as sf
 import numpy as np
 from scipy.io.wavfile import write
+from silero_vad import VoiceActivityDetector
 
 # Global Variables
 PROCESSED_AUDIO_FOLDER = "processed_audio"  # Input folder (from Stage 1)
 VAD_OUTPUT_FOLDER = "speech_segments"       # Output folder for speech regions
 SAMPLE_RATE = 16000                         # Required sample rate for VAD
-FRAME_DURATION = 30                         # Frame duration in ms (10, 20, or 30 ms)
 
 def ensure_folder_exists(folder_path):
     """Ensure that the specified folder exists."""
@@ -21,45 +20,36 @@ def load_audio(file_path, sample_rate=SAMPLE_RATE):
     audio, sr = librosa.load(file_path, sr=sample_rate)
     return audio
 
-def frame_generator(audio, frame_duration, sample_rate):
+def detect_speech_segments_silero(audio, sample_rate):
     """
-    Generator function to yield audio frames for VAD processing.
-    Args:
-        audio (numpy array): Audio samples.
-        frame_duration (int): Frame duration in milliseconds.
-        sample_rate (int): Audio sample rate.
-    """
-    frame_size = int(sample_rate * (frame_duration / 1000))
-    num_frames = len(audio) // frame_size
-    for i in range(num_frames):
-        yield audio[i * frame_size : (i + 1) * frame_size]
-
-def detect_speech_segments(audio, vad, sample_rate, frame_duration):
-    """
-    Detect speech segments using WebRTC VAD.
+    Detect speech segments using Silero VAD.
     Args:
         audio (numpy array): Audio signal.
-        vad (webrtcvad.Vad): VAD instance.
         sample_rate (int): Sampling rate.
-        frame_duration (int): Duration of each frame.
     Returns:
         List of (start, end) tuples of speech segments.
     """
-    frames = list(frame_generator(audio, frame_duration, sample_rate))
-    is_speech = [vad.is_speech(frame.tobytes(), sample_rate) for frame in frames]
-    
-    segments = []
+    detector = VoiceActivityDetector(sample_rate=sample_rate)
+    speech_probs = detector(audio)  # Returns a probability for each frame
+    speech_segments = []
+
+    # Convert frame-level probabilities to time segments
+    frame_duration = detector.frame_duration_sec
     start, end = None, None
-    for i, speech in enumerate(is_speech):
-        if speech and start is None:
-            start = i
-        if not speech and start is not None:
-            end = i
-            segments.append((start * frame_duration / 1000, end * frame_duration / 1000))
-            start, end = None, None
+
+    for i, prob in enumerate(speech_probs):
+        if prob > 0.5:  # Speech detected
+            if start is None:
+                start = i * frame_duration
+        else:
+            if start is not None:
+                end = i * frame_duration
+                speech_segments.append((start, end))
+                start, end = None, None
     if start is not None:
-        segments.append((start * frame_duration / 1000, len(audio) / sample_rate))
-    return segments
+        speech_segments.append((start, len(audio) / sample_rate))
+    
+    return speech_segments
 
 def save_speech_segments(audio, speech_segments, sample_rate, output_folder, file_name):
     """
@@ -87,18 +77,18 @@ def process_vad(audio_file):
         audio_file (str): Path to the input audio file.
     """
     print(f"Processing VAD for: {audio_file}")
-    vad = webrtcvad.Vad()
-    vad.set_mode(3)  # Aggressiveness mode (0-3, 3 being most aggressive)
-    
-    audio = load_audio(audio_file, SAMPLE_RATE)
-    speech_segments = detect_speech_segments(audio, vad, SAMPLE_RATE, FRAME_DURATION)
-    
-    if not speech_segments:
-        print("No speech detected.")
-        return
+    try:
+        audio = load_audio(audio_file, SAMPLE_RATE)
+        speech_segments = detect_speech_segments_silero(audio, SAMPLE_RATE)
+        
+        if not speech_segments:
+            print("No speech detected.")
+            return
 
-    file_name = os.path.splitext(os.path.basename(audio_file))[0]
-    save_speech_segments(audio, speech_segments, SAMPLE_RATE, VAD_OUTPUT_FOLDER, file_name)
+        file_name = os.path.splitext(os.path.basename(audio_file))[0]
+        save_speech_segments(audio, speech_segments, SAMPLE_RATE, VAD_OUTPUT_FOLDER, file_name)
+    except Exception as e:
+        print(f"Error processing {audio_file}: {e}")
 
 def process_all_files():
     """

@@ -1,0 +1,8 @@
+__pycache__/
+.pytest_cache/
+OLD/
+processed_audio/
+raw_audio/
+speaker_audio/
+speech_segments/
+transcriptions/

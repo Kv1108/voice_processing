@@ -3,14 +3,14 @@ import threading
 import time
 from utils import ensure_folder_exists
 from audio_acquisition_preprocessing import preprocess_and_save_audio
-from diarization_stage import perform_speaker_diarization
+from vad_silence_removal import process_vad
 from audio_separation_stage import separate_speakers
 from transcription_stage import process_transcription
 
 # Global Variables
 INPUT_AUDIO_FOLDER = "input_audio"            # Folder for incoming audio files
 PROCESSED_AUDIO_FOLDER = "processed_audio"    # Processed audio after filtering
-DIARIZED_FOLDER = "diarized_audio"            # Speaker segments for diarization
+VAD_OUTPUT_FOLDER = "speech_segments"         # Folder for speech segments after VAD
 SEPARATED_AUDIO_FOLDER = "speaker_audio"      # Folder for speaker-separated audio
 TRANSCRIPTIONS_FOLDER = "transcriptions"      # Final transcription output
 LOG_FOLDER = "logs"                           # Error logs folder
@@ -19,7 +19,7 @@ OUTPUT_SUMMARY_FILE = "output_summary.txt"    # Consolidated final transcription
 # Ensure required folders exist
 ensure_folder_exists(INPUT_AUDIO_FOLDER)
 ensure_folder_exists(PROCESSED_AUDIO_FOLDER)
-ensure_folder_exists(DIARIZED_FOLDER)
+ensure_folder_exists(VAD_OUTPUT_FOLDER)
 ensure_folder_exists(SEPARATED_AUDIO_FOLDER)
 ensure_folder_exists(TRANSCRIPTIONS_FOLDER)
 ensure_folder_exists(LOG_FOLDER)
@@ -56,15 +56,44 @@ def process_audio_pipeline(audio_file):
         # Stage 1: Audio Preprocessing
         print("Step 1: Preprocessing Audio...")
         processed_audio_file = os.path.join(PROCESSED_AUDIO_FOLDER, f"{base_name}_processed.wav")
-        preprocess_audio_file(audio_file, processed_audio_file)
+        preprocess_and_save_audio(audio_file, processed_audio_file)
 
-        # Stage 2: Speaker Diarization
-        print("Step 2: Performing Speaker Diarization...")
-        diarized_output = os.path.join(DIARIZED_FOLDER, base_name)
-        perform_speaker_diarization(processed_audio_file, diarized_output)
+        # Stage 2: VAD and Silence Removal
+        print("Step 2: Performing VAD and Silence Removal...")
+        process_vad(processed_audio_file)
 
         # Stage 3: Speaker Audio Separation
         print("Step 3: Separating Speakers...")
+        for segment_file in os.listdir(VAD_OUTPUT_FOLDER):
+            if segment_file.startswith(base_name) and segment_file.endswith(".wav"):
+                segment_path = os.path.join(VAD_OUTPUT_FOLDER, segment_file)
+                separate_speakers(segment_path, SEPARATED_AUDIO_FOLDER)
+
+        # Stage 4: Transcription
+        print("Step 4: Transcribing Separated Audio...")
+        process_transcription(SEPARATED_AUDIO_FOLDER, TRANSCRIPTIONS_FOLDER)
+
+        print(f"Pipeline completed for: {audio_file}")
     except Exception as e:
-        print(f"Error processing {audio_file}: {e}")
-     
+        error_message = f"Error processing {audio_file}: {e}"
+        log_error(error_message)
+        print(error_message)
+
+def monitor_input_folder():
+    """Continuously monitor the input folder for new audio files."""
+    print("Monitoring input folder for new audio files...")
+    processed_files = set()
+
+    while True:
+        try:
+            for audio_file in os.listdir(INPUT_AUDIO_FOLDER):
+                if audio_file.endswith(".wav") and audio_file not in processed_files:
+                    audio_path = os.path.join(INPUT_AUDIO_FOLDER, audio_file)
+                    threading.Thread(target=process_audio_pipeline, args=(audio_path,)).start()
+                    processed_files.add(audio_file)
+        except Exception as e:
+            log_error(f"Error monitoring input folder: {e}")
+        time.sleep(5)  # Check for new files every 5 seconds
+
+if __name__ == "__main__":
+    monitor_input_folder()
