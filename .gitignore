@@ -1,10 +1,10 @@
-clusters/
-processed_audio/
-recorded_audio/
-recorded_videos/
-transcriptions/
-transcription/
-temp_audio_segments/
+# clusters/
+# processed_audio/
+# recorded_audio/
+# recorded_videos/
+# transcriptions/
+# transcription/
+# temp_audio_segments/
 
 .vscode/
 __pycache__/
