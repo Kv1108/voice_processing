@@ -1,49 +1,17 @@
 from flask import Flask, jsonify, request
-from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import threading
 import os
-import time
 from final import record_and_transcribe, stop_transcription
 
 app = Flask(__name__)
-
-# Initialize SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-# Enable CORS for all routes and WebSocket connections
-CORS(app, resources={r"/*": {"origins": "*"}})
-
+socketio = SocketIO(app)  # Initialize Flask-SocketIO
 os.environ["SB_LOCAL_FETCH_STRATEGY"] = "copy"
 
 # Global variables for controlling the transcription process
 transcription_thread = None
 transcription_running = False
 transcription_output = []  # To hold the live transcription text
-transcription_file_path = "transcriptions"  # Directory where transcription files are stored
-
-
-def read_latest_transcription_file():
-    """
-    Reads the latest transcription file and returns its content.
-    """
-    if not os.path.exists(transcription_file_path):
-        return []
-
-    # Get the latest file in the transcription folder
-    files = sorted(os.listdir(transcription_file_path), reverse=True)
-    if not files:
-        return []
-
-    latest_file = os.path.join(transcription_file_path, files[0])
-
-    # Read the contents of the latest file
-    try:
-        with open(latest_file, "r") as f:
-            return f.readlines()  # Return all lines as a list
-    except Exception as e:
-        print(f"Error reading file {latest_file}: {e}")
-        return []
 
 
 def stream_transcription():
@@ -53,25 +21,14 @@ def stream_transcription():
     global transcription_output
 
     while transcription_running:
-        # Read the latest file content
-        updated_transcription = read_latest_transcription_file()
-
-        # Only send new lines to the client
-        if len(updated_transcription) > len(transcription_output):
-            new_lines = updated_transcription[len(transcription_output):]
-            transcription_output = updated_transcription
-
-            # Emit each new line to the WebSocket client
-            for line in new_lines:
-                socketio.emit('transcription_update', {'transcription': line.strip()})
-        
+        if transcription_output:
+            # Send the latest transcription chunk to clients
+            socketio.emit('transcription_update', {'transcription': transcription_output[-1]})
         socketio.sleep(1)  # Sleep for a second before checking again
 
 
 @app.route('/start', methods=['POST'])
 def start_transcription():
-    print("Received request to start transcription")  # Log request
-
     """
     API endpoint to start the recording and transcription process.
     """

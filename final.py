@@ -71,13 +71,7 @@ def is_silence(audio_chunk):
     return all(abs(a) < SILENCE_THRESHOLD for a in amplitude)
 
 def compare_speakers_advanced(audio_path1, audio_path2):
-    """
-    Compare two audio files to check if they belong to the same speaker using SpeechBrain.
-
-    :param audio_path1: Path to the first audio file
-    :param audio_path2: Path to the second audio file
-    :return: Similarity score (higher means more likely the same person) and boolean indicating if they are the same speaker
-    """
+    
     # Load pre-trained speaker recognition model
     model = SpeakerRecognition.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb", savedir="tmp_model")
 
