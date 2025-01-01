@@ -7,9 +7,7 @@ import keyboard
 import speech_recognition as sr
 from utils import ensure_folder_exists
 import torch
-
-os.environ["SB_LOCAL_FETCH_STRATEGY"] = "copy"
-from speechbrain.inference import SpeakerRecognition
+from speechbrain.pretrained import SpeakerRecognition
 
 # Constants
 SILENCE_THRESHOLD = 500
@@ -105,26 +103,7 @@ def assign_speaker(audio_path, previous_chunks):
     return new_speaker_id
 
 
-def process_audio_chunk(audio_chunk, filename, transcription_text, previous_chunks, transcription_path):
-    """
-    Process a single audio chunk: save it, transcribe it, and update the transcription file in real-time.
-    """
-    audio_path = save_audio(audio_chunk, filename)
-    transcription, is_intelligible = transcribe_audio(audio_path)
-
-    if is_intelligible:
-        speaker = assign_speaker(audio_path, previous_chunks)
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        transcription_line = f"[{timestamp}] [Speaker {speaker}]: {transcription}"
-        transcription_text.append(transcription_line)
-
-        # Append the transcription to the file in real-time
-        with open(transcription_path, "a") as f:
-            f.write(transcription_line + "\n")
-
-        print(transcription_line)
-    else:
-        print(f"Skipping unintelligible audio chunk: {filename}")
+def process_audio_chunk(audio_chunk, filename, transcription_text, previous_chunks):
     audio_path = save_audio(audio_chunk, filename)
     transcription, is_intelligible = transcribe_audio(audio_path)
 
@@ -137,16 +116,13 @@ def process_audio_chunk(audio_chunk, filename, transcription_text, previous_chun
         print(f"Skipping unintelligible audio chunk: {filename}")
 
 def record_and_transcribe():
-    global frames, full_audio_frames, silent_chunks  # Declare global variables at the top
+    global frames, full_audio_frames, silent_chunks
 
     transcription_text = []
     filename_base = datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
     chunk_count = 1
     transcription_threads = []
     previous_chunks = {}
-
-    # Real-time transcription file path
-    transcription_path = os.path.join(transcription_folder, f"{filename_base}_transcription.txt")
 
     try:
         while True:
@@ -164,10 +140,7 @@ def record_and_transcribe():
                     audio_chunk = b"".join(frames)
                     frames = []
                     chunk_filename = f"{filename_base}_chunk{chunk_count}"
-                    thread = threading.Thread(
-                        target=process_audio_chunk,
-                        args=(audio_chunk, chunk_filename, transcription_text, previous_chunks, transcription_path)
-                    )
+                    thread = threading.Thread(target=process_audio_chunk, args=(audio_chunk, chunk_filename, transcription_text, previous_chunks))
                     thread.start()
                     transcription_threads.append(thread)
                     chunk_count += 1
@@ -181,6 +154,8 @@ def record_and_transcribe():
 
         full_audio_data = b"".join(full_audio_frames)
         save_audio(full_audio_data, filename_base)
+        transcription_path = os.path.join(transcription_folder, f"{filename_base}_transcription.txt")
+        save_transcription("\n".join(transcription_text), filename_base)
 
         # Display the content of the transcription file
         try:
@@ -190,17 +165,6 @@ def record_and_transcribe():
         except FileNotFoundError:
             print(f"Error: Transcription file '{transcription_path}' not found.")
 
-def stop_transcription():
-    """
-    Stops the transcription process, releasing resources.
-    """
-    global stream, audio
-    if stream:
-        stream.stop_stream()
-        stream.close()
-    if audio:
-        audio.terminate()
-    print("Transcription process stopped.")
 
 if __name__ == "__main__":
     try:

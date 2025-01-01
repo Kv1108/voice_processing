@@ -2,8 +2,10 @@ separated_voices/
 recorded_audio/
 transcriptions/
 
+tmp_model/
 
 .vscode/
 __pycache__/
 .pytest_cache/
 abc.txt
+
