@@ -10,7 +10,7 @@
 
     <div class="container">
         <h1>Live Transcription</h1>
-        <div id="transcription-box"></div>
+        <div id="transcription-box" class="transcription-box"></div>
         <div>
             <button id="start-btn" class="btn start-btn">Start</button>
             <button id="stop-btn" class="btn stop-btn" disabled>Stop</button>
@@ -20,22 +20,41 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
     <script>
-        const socket = io('http://127.0.0.1:5000'); // Connect to the WebSocket server
+        const socket = io('http://127.0.0.1:5000');
         const transcriptionBox = document.getElementById('transcription-box');
         const startBtn = document.getElementById('start-btn');
         const stopBtn = document.getElementById('stop-btn');
         const clearBtn = document.getElementById('clear-btn');
 
-        // Handle transcription updates from the server
+        // Handle WebSocket transcription updates
         socket.on('transcription_update', (data) => {
-            console.log("Received transcription:", data.transcription);
-
-            // Append transcription to the box
-            const newLine = document.createElement('p');
-            newLine.textContent = data.transcription;
-            transcriptionBox.appendChild(newLine);
-            transcriptionBox.scrollTop = transcriptionBox.scrollHeight; // Scroll to the latest text
+            if (data.transcription) {
+                const newLine = document.createElement('p');
+                newLine.textContent = data.transcription;
+                transcriptionBox.appendChild(newLine);
+                transcriptionBox.scrollTop = transcriptionBox.scrollHeight; // Auto-scroll to latest text
+            }
         });
+
+        // Fetch and display the latest transcription file content
+        function fetchLatestFileContent() {
+            fetch('http://127.0.0.1:5000/latest-transcription')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        transcriptionBox.innerHTML = ''; // Clear previous content
+                        data.content.forEach(line => {
+                            const newLine = document.createElement('p');
+                            newLine.textContent = line.trim();
+                            transcriptionBox.appendChild(newLine);
+                        });
+                        console.log(`Loaded content from: ${data.file}`);
+                    } else {
+                        console.error(data.message);
+                    }
+                })
+                .catch(err => console.error("Error fetching latest transcription:", err));
+        }
 
         // Start transcription
         startBtn.addEventListener('click', () => {
@@ -55,13 +74,14 @@
 
         // Stop transcription
         stopBtn.addEventListener('click', () => {
-            fetch('/stop', { method: 'POST' })
+            fetch('http://127.0.0.1:5000/stop', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === "success") {
                         startBtn.disabled = false;
                         stopBtn.disabled = true;
                         console.log("Transcription stopped");
+                        fetchLatestFileContent(); // Refresh transcription box with the latest file
                     } else {
                         console.error(data.message);
                     }
@@ -71,9 +91,12 @@
 
         // Clear transcription box
         clearBtn.addEventListener('click', () => {
-            transcriptionBox.innerHTML = ''; // Clears the transcription box
+            transcriptionBox.innerHTML = '';
             console.log("Transcription cleared");
         });
+
+        // Load the latest transcription content on page load
+        window.onload = fetchLatestFileContent;
     </script>
 
 </body>

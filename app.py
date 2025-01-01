@@ -7,126 +7,86 @@ import time
 from final import record_and_transcribe, stop_transcription
 
 app = Flask(__name__)
-
-# Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*")
-
-# Enable CORS for all routes and WebSocket connections
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-os.environ["SB_LOCAL_FETCH_STRATEGY"] = "copy"
-
-# Global variables for controlling the transcription process
-transcription_thread = None
 transcription_running = False
-transcription_output = []  # To hold the live transcription text
-transcription_file_path = "transcriptions"  # Directory where transcription files are stored
+transcription_thread = None
+transcription_output = []
+transcription_folder = "transcriptions"
 
 
-def read_latest_transcription_file():
+def get_latest_transcription():
     """
-    Reads the latest transcription file and returns its content.
+    Finds and returns the content of the latest transcription file.
     """
-    if not os.path.exists(transcription_file_path):
-        return []
+    if not os.path.exists(transcription_folder):
+        return {"file": None, "content": []}
 
-    # Get the latest file in the transcription folder
-    files = sorted(os.listdir(transcription_file_path), reverse=True)
+    files = [f for f in os.listdir(transcription_folder) if f.endswith("_transcription.txt")]
     if not files:
-        return []
+        return {"file": None, "content": []}
 
-    latest_file = os.path.join(transcription_file_path, files[0])
+    latest_file = max(files, key=lambda f: os.path.getctime(os.path.join(transcription_folder, f)))
+    file_path = os.path.join(transcription_folder, latest_file)
 
-    # Read the contents of the latest file
+    with open(file_path, "r") as file:
+        content = file.readlines()
+
+    return {"file": latest_file, "content": content}
+
+
+@app.route('/latest-transcription', methods=['GET'])
+def latest_transcription():
+    """
+    API to fetch the latest transcription file's content.
+    """
     try:
-        with open(latest_file, "r") as f:
-            return f.readlines()  # Return all lines as a list
+        latest = get_latest_transcription()
+        if not latest["file"]:
+            return jsonify({"status": "error", "message": "No transcription files found"}), 404
+        return jsonify({"status": "success", "file": latest["file"], "content": latest["content"]})
     except Exception as e:
-        print(f"Error reading file {latest_file}: {e}")
-        return []
-
-
-def stream_transcription():
-    """
-    Streams the transcription output to clients via WebSocket.
-    """
-    global transcription_output
-
-    while transcription_running:
-        # Read the latest file content
-        updated_transcription = read_latest_transcription_file()
-
-        # Only send new lines to the client
-        if len(updated_transcription) > len(transcription_output):
-            new_lines = updated_transcription[len(transcription_output):]
-            transcription_output = updated_transcription
-
-            # Emit each new line to the WebSocket client
-            for line in new_lines:
-                socketio.emit('transcription_update', {'transcription': line.strip()})
-        
-        socketio.sleep(1)  # Sleep for a second before checking again
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route('/start', methods=['POST'])
 def start_transcription():
-    print("Received request to start transcription")  # Log request
-
-    """
-    API endpoint to start the recording and transcription process.
-    """
-    global transcription_thread, transcription_running
-
+    global transcription_running, transcription_thread
     if transcription_running:
-        return jsonify({"status": "error", "message": "Transcription already running."}), 400
+        return jsonify({"status": "error", "message": "Transcription is already running."}), 400
 
-    # Reset transcription output
-    transcription_output.clear()
-
-    # Start the transcription process in a separate thread
     transcription_running = True
     transcription_thread = threading.Thread(target=record_and_transcribe)
     transcription_thread.start()
 
-    # Start streaming transcription updates via WebSocket
     socketio.start_background_task(target=stream_transcription)
-
     return jsonify({"status": "success", "message": "Transcription started."})
 
 
 @app.route('/stop', methods=['POST'])
 def stop_transcription_api():
-    """
-    API endpoint to stop the recording and transcription process.
-    """
     global transcription_running
-
     if not transcription_running:
         return jsonify({"status": "error", "message": "No transcription is running."}), 400
 
-    # Stop the transcription process
     stop_transcription()
     transcription_running = False
-
     return jsonify({"status": "success", "message": "Transcription stopped."})
 
 
-@socketio.on('connect')
-def handle_connect():
-    """
-    Handles a new WebSocket connection.
-    """
-    print("Client connected")
+def stream_transcription():
+    global transcription_output
+    while transcription_running:
+        latest = get_latest_transcription()
+        if latest["content"] and len(latest["content"]) > len(transcription_output):
+            new_lines = latest["content"][len(transcription_output):]
+            transcription_output = latest["content"]
 
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    """
-    Handles a WebSocket disconnection.
-    """
-    print("Client disconnected")
+            for line in new_lines:
+                socketio.emit('transcription_update', {'transcription': line.strip()})
+        socketio.sleep(1)
 
 
 if __name__ == "__main__":
-    # Run the Flask app with WebSocket support
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
