@@ -4,127 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Transcription</title>
-    <style>
-        /* Basic reset */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        /* Body styling */
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f4;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            color: #333;
-            padding: 20px;
-        }
-
-        /* Main container */
-        .container {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            width: 80%;
-            max-width: 700px;
-            text-align: center;
-            box-sizing: border-box;
-        }
-
-        /* Heading */
-        h1 {
-            font-size: 2rem;
-            color: #2c3e50;
-            margin-bottom: 20px;
-        }
-
-        /* Transcription box */
-        #transcription-box {
-            width: 100%;
-            height: 300px;
-            border: 1px solid #ccc;
-            background-color: #f9f9f9;
-            padding: 10px;
-            border-radius: 10px;
-            overflow-y: auto;
-            font-size: 1rem;
-            color: #555;
-            margin-bottom: 30px;
-        }
-
-        /* Button styles */
-        .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 25px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.3s ease;
-            margin: 10px;
-        }
-
-        /* Start button */
-        .start-btn {
-            background-color: #27ae60;
-            color: white;
-            box-shadow: 0 4px 8px rgba(39, 174, 96, 0.4);
-        }
-
-        .start-btn:hover {
-            background-color: #2ecc71;
-            transform: scale(1.05);
-        }
-
-        .start-btn:disabled {
-            background-color: #bdc3c7;
-            cursor: not-allowed;
-        }
-
-        /* Stop button */
-        .stop-btn {
-            background-color: #e74c3c;
-            color: white;
-            box-shadow: 0 4px 8px rgba(231, 76, 60, 0.4);
-        }
-
-        .stop-btn:hover {
-            background-color: #c0392b;
-            transform: scale(1.05);
-        }
-
-        .stop-btn:disabled {
-            background-color: #bdc3c7;
-            cursor: not-allowed;
-        }
-
-        /* Add a smooth scroll effect when content overflows */
-        #transcription-box {
-            scroll-behavior: smooth;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-                width: 90%;
-            }
-
-            h1 {
-                font-size: 1.8rem;
-            }
-
-            .btn {
-                font-size: 1rem;
-                padding: 10px 20px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="transcription.css">
 </head>
 <body>
 
@@ -134,6 +14,7 @@
         <div>
             <button id="start-btn" class="btn start-btn">Start</button>
             <button id="stop-btn" class="btn stop-btn" disabled>Stop</button>
+            <button id="clear-btn" class="btn clear-btn">Clear</button>
         </div>
     </div>
 
@@ -143,6 +24,7 @@
         const transcriptionBox = document.getElementById('transcription-box');
         const startBtn = document.getElementById('start-btn');
         const stopBtn = document.getElementById('stop-btn');
+        const clearBtn = document.getElementById('clear-btn');
 
         // Handle transcription updates from the server
         socket.on('transcription_update', (data) => {
@@ -185,6 +67,12 @@
                     }
                 })
                 .catch(err => console.error("Error stopping transcription:", err));
+        });
+
+        // Clear transcription box
+        clearBtn.addEventListener('click', () => {
+            transcriptionBox.innerHTML = ''; // Clears the transcription box
+            console.log("Transcription cleared");
         });
     </script>
 
